@@ -8,9 +8,11 @@ namespace MatchingPricing_Service.Api;
 [Route("quote")]
 public sealed class QuoteController(IQuoteService quoteService) : ControllerBase
 {
+
     [HttpPost]
     public async Task<IActionResult> RequestQuoteAsync(
         QuoteRequestContract contract,
+
         CancellationToken cancellationToken)
     {
         var result = await quoteService.RequestQuoteAsync(contract, cancellationToken);
