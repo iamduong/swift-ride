@@ -10,6 +10,7 @@ public sealed class PricingService : IPricingService
 
     public PricingService(IEnumerable<IPricingStrategy> strategies)
     {
+        // Chọn công thức tính giá theo điều kiện thời tiết của chuyến đi.
         _strategies = strategies.ToDictionary(strategy => strategy.WeatherCondition);
     }
 

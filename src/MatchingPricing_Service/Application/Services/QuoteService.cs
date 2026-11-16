@@ -24,6 +24,7 @@ public sealed class QuoteService(
         }
 
         var route = oSRM.Routes[0];
+        // OSRM trả khoảng cách bằng mét và thời gian bằng giây; bộ tính giá dùng km và phút.
         var price = pricingService.ProcessPrice(
             route.Distance / 1000,
             route.Duration / 60,

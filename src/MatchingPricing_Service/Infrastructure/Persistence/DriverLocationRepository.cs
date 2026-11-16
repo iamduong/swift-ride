@@ -24,6 +24,7 @@ public sealed class DriverLocationRepository : IDriverLocationRepository
         double longitude,
         CancellationToken cancellationToken)
     {
+        // Upsert tạo hồ sơ vị trí khi tài xế gửi tọa độ lần đầu.
         var point = new GeoJsonPoint<GeoJson2DGeographicCoordinates>(
             new GeoJson2DGeographicCoordinates(longitude, latitude));
         var now = DateTime.UtcNow;
@@ -67,6 +68,7 @@ public sealed class DriverLocationRepository : IDriverLocationRepository
             )
         );
 
+        // NearSphere dùng chỉ mục 2dsphere để lấy tài xế gần điểm đón nhất.
         var filters = new List<FilterDefinition<DriverLocation>>
         {
             Builders<DriverLocation>.Filter.Eq(driver => driver.IsOnline, true),
