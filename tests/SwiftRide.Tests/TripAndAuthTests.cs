@@ -211,6 +211,72 @@ public sealed class TripAndAuthTests
     }
 
     [Fact]
+    public async Task Rider_history_summary_counts_only_paid_fares_and_distance()
+    {
+        var riderUuid = Guid.NewGuid();
+        var trips = new Mock<ITripRepository>();
+        trips.Setup(x => x.FindHistoryByRiderAsync(riderUuid, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Trip>
+            {
+                new() { Status = TripStatus.Paid, Price = 25_000m, DistanceKM = 3.5m },
+                new() { Status = TripStatus.Paid, Price = 15_000m, DistanceKM = 2m },
+                new() { Status = TripStatus.Cancelled, Price = 50_000m, DistanceKM = 6m },
+                new() { Status = TripStatus.Failed },
+                new() { Status = TripStatus.DroppedOff, Price = 10_000m }
+            });
+        var service = new TripService(Mock.Of<IAccountRepository>(), trips.Object);
+
+        var summary = await service.GetTripHistorySummaryByRiderAsync(riderUuid);
+
+        Assert.Equal(5, summary.TotalTrips);
+        Assert.Equal(2, summary.PaidTrips);
+        Assert.Equal(1, summary.CancelledTrips);
+        Assert.Equal(40_000m, summary.TotalPaidAmount);
+        Assert.Equal(5.5m, summary.TotalPaidDistanceKM);
+        trips.Verify(x => x.FindHistoryByRiderAsync(riderUuid, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Driver_history_summary_uses_driver_history_and_handles_missing_values()
+    {
+        var driverUuid = Guid.NewGuid();
+        var trips = new Mock<ITripRepository>();
+        trips.Setup(x => x.FindHistoryByDriverAsync(driverUuid, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Trip>
+            {
+                new() { Status = TripStatus.Paid, Price = 30_000m },
+                new() { Status = TripStatus.Paid, DistanceKM = 4m },
+                new() { Status = TripStatus.PaymentPending, Price = 20_000m }
+            });
+        var service = new TripService(Mock.Of<IAccountRepository>(), trips.Object);
+
+        var summary = await service.GetTripHistorySummaryByDriverAsync(driverUuid);
+
+        Assert.Equal(3, summary.TotalTrips);
+        Assert.Equal(2, summary.PaidTrips);
+        Assert.Equal(0, summary.CancelledTrips);
+        Assert.Equal(30_000m, summary.TotalPaidAmount);
+        Assert.Equal(4m, summary.TotalPaidDistanceKM);
+        trips.Verify(x => x.FindHistoryByDriverAsync(driverUuid, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Empty_history_has_zero_summary()
+    {
+        var trips = new Mock<ITripRepository>();
+        trips.Setup(x => x.FindHistoryByRiderAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Trip>());
+
+        var summary = await new TripService(Mock.Of<IAccountRepository>(), trips.Object)
+            .GetTripHistorySummaryByRiderAsync(Guid.NewGuid());
+
+        Assert.Equal(0, summary.TotalTrips);
+        Assert.Equal(0, summary.PaidTrips);
+        Assert.Equal(0m, summary.TotalPaidAmount);
+        Assert.Equal(0m, summary.TotalPaidDistanceKM);
+    }
+
+    [Fact]
     public void PasswordService_hashes_and_verifies()
     {
         var service = new PasswordService(new PasswordHasher<Account>());

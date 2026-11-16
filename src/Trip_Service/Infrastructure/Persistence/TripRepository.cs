@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Trip_Service.Application.Contracts.Trip;
 using Trip_Service.Domain;
 using Trip_Service.Infrastructure.Persistence.Impl;
 
@@ -62,6 +63,70 @@ public sealed class TripRepository(TripDBContext dbContext) : ITripRepository
                  trip.Status == TripStatus.Paid))
             .OrderByDescending(trip => trip.UpdatedAt)
             .ToListAsync(cancellationToken);
+
+    public async Task<(IReadOnlyList<Trip> Items, int TotalItems)> SearchHistoryAsync(
+        Guid ownerUuid,
+        bool isDriver,
+        TripHistorySearchContract query,
+        CancellationToken cancellationToken = default)
+    {
+        IQueryable<Trip> filtered = HistoryFor(ownerUuid, isDriver);
+
+        if (query.Status is { } status)
+        {
+            filtered = filtered.Where(trip => trip.Status == status);
+        }
+
+        if (query.From is { } from)
+        {
+            filtered = filtered.Where(trip => trip.CreatedAt >= from);
+        }
+
+        if (query.To is { } to)
+        {
+            filtered = filtered.Where(trip => trip.CreatedAt <= to);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var search = query.Search;
+            filtered = filtered.Where(trip =>
+                trip.PickupName.Contains(search) || trip.DestinationName.Contains(search));
+        }
+
+        var count = await filtered.CountAsync(cancellationToken);
+        var items = await filtered.OrderByDescending(trip => trip.UpdatedAt)
+            .ThenByDescending(trip => trip.Uuid)
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, count);
+    }
+
+    public async Task<IReadOnlyList<Trip>> FindHistoryForPeriodAsync(
+        Guid ownerUuid,
+        bool isDriver,
+        DateTime from,
+        DateTime toExclusive,
+        CancellationToken cancellationToken = default)
+    {
+        return await HistoryFor(ownerUuid, isDriver)
+            .Where(trip => trip.CreatedAt >= from && trip.CreatedAt < toExclusive)
+            .ToListAsync(cancellationToken);
+    }
+
+    private IQueryable<Trip> HistoryFor(Guid ownerUuid, bool isDriver)
+    {
+        var trips = dbContext.Trips.AsNoTracking();
+        return isDriver
+            ? trips.Where(trip => trip.DriverUuid == ownerUuid &&
+                (trip.Status == TripStatus.DroppedOff ||
+                 trip.Status == TripStatus.PaymentPending || trip.Status == TripStatus.Paid))
+            : trips.Where(trip => trip.RiderUuid == ownerUuid &&
+                (trip.Status == TripStatus.DroppedOff || trip.Status == TripStatus.Paid ||
+                 trip.Status == TripStatus.Cancelled || trip.Status == TripStatus.Failed));
+    }
 
     public async Task AddAsync(Trip trip, CancellationToken cancellationToken = default)
     {

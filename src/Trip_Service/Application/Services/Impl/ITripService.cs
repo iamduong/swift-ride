@@ -13,6 +13,15 @@ public interface ITripService
     Task<Trip?> GetActiveTripByDriverAsync(Guid driverUuid, Guid? excludeTripUuid = null, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Trip>> GetTripHistoryByRiderAsync(Guid riderUuid, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Trip>> GetTripHistoryByDriverAsync(Guid driverUuid, CancellationToken cancellationToken = default);
+    Task<TripHistorySummaryContract> GetTripHistorySummaryByRiderAsync(Guid riderUuid, CancellationToken cancellationToken = default);
+    Task<TripHistorySummaryContract> GetTripHistorySummaryByDriverAsync(Guid driverUuid, CancellationToken cancellationToken = default);
+    Task<TripHistoryPageContract> SearchTripHistoryAsync(
+        Guid ownerUuid, bool isDriver, TripHistorySearchContract query, CancellationToken cancellationToken = default);
+    Task<byte[]> ExportTripHistoryAsync(
+        Guid ownerUuid, bool isDriver, TripHistorySearchContract query, CancellationToken cancellationToken = default);
+    Task<TripHistoryInsightsContract> GetTripHistoryInsightsAsync(
+        Guid ownerUuid, bool isDriver, DateOnly from, DateOnly to,
+        CancellationToken cancellationToken = default);
 
     Task<Trip> CreateTripAsync(
         Guid riderUuid,

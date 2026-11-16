@@ -4,18 +4,18 @@
 
 ## Tổng quan
 
-Trong `src` có **28 API nghiệp vụ**, được tính theo số action HTTP trong các controller:
+Trong `src` có **36 API nghiệp vụ**, được tính theo số action HTTP trong các controller:
 
 | Service | Số API | Đường dẫn truy cập |
 |---|---:|---|
-| Trip Service | 21 | Qua Gateway: `/ts/...` |
+| Trip Service | 29 | Qua Gateway: `/ts/...` |
 | Matching & Pricing Service | 3 | Qua Gateway: `/mp/...` |
 | Payment Service | 4 | Qua Gateway: `/pm/...` |
-| **Tổng** | **28** | |
+| **Tổng** | **36** | |
 
 Ngoài ra, API Gateway có `GET /` trả về `Hello World!` để kiểm tra Gateway đang chạy. Endpoint này không được tính là API nghiệp vụ.
 
-> Lưu ý: API đọc vị trí tài xế của Matching & Pricing Service hỗ trợ cả tiền tố `/driver` và `/drivers`. Vì vậy có **29 URL nghiệp vụ thực tế**, nhưng chỉ có **28 action API**. Các endpoint OpenAPI chỉ xuất hiện trong môi trường Development và không được tính.
+> Lưu ý: API đọc vị trí tài xế của Matching & Pricing Service hỗ trợ cả tiền tố `/driver` và `/drivers`. Vì vậy có **37 URL nghiệp vụ thực tế**, nhưng chỉ có **36 action API**. Các endpoint OpenAPI chỉ xuất hiện trong môi trường Development và không được tính.
 
 ## Quy ước
 
@@ -23,7 +23,7 @@ Ngoài ra, API Gateway có `GET /` trả về `Hello World!` để kiểm tra Ga
 - `JWT`: gửi access token qua header `Authorization: Bearer <token>`.
 - `{...}`: tham số động trên URL.
 
-## 1. Trip Service — 21 API
+## 1. Trip Service — 29 API
 
 Base URL qua Gateway: `http://localhost:8000/ts`
 
@@ -67,6 +67,35 @@ Base URL qua Gateway: `http://localhost:8000/ts`
 |---:|---|---|---|---|
 | 20 | `GET` | `/payments` | JWT | Lấy danh sách hóa đơn của hành khách hiện tại từ Payment Service. |
 | 21 | `GET` | `/payments/driver` | JWT | Lấy danh sách hóa đơn và thu nhập của tài xế hiện tại. |
+
+### Thống kê lịch sử chuyến đi
+
+| Method | Endpoint | Quyền | Ý nghĩa |
+|---|---|---|---|
+| `GET` | `/trips/history/summary` | JWT hành khách | Thống kê các chuyến trong lịch sử của hành khách hiện tại. |
+| `GET` | `/driver/history/summary` | JWT tài xế | Thống kê các chuyến trong lịch sử của tài xế hiện tại. |
+
+Hai endpoint trả về `totalTrips`, `paidTrips`, `cancelledTrips`, `totalPaidAmount` và `totalPaidDistanceKM`. Tổng tiền và quãng đường chỉ tính các chuyến có trạng thái `Paid`; chuyến chưa thanh toán hoặc đã hủy không được cộng vào tổng.
+
+### Tra cứu và xuất lịch sử
+
+| Method | Endpoint | Quyền | Ý nghĩa |
+|---|---|---|---|
+| `GET` | `/trips/history/search` | JWT hành khách | Tra cứu lịch sử của hành khách hiện tại. |
+| `GET` | `/driver/history/search` | JWT tài xế | Tra cứu lịch sử của tài xế hiện tại. |
+| `GET` | `/trips/history/export` | JWT hành khách | Tải tối đa 1.000 chuyến đầu tiên phù hợp bộ lọc dưới dạng CSV UTF-8. |
+| `GET` | `/driver/history/export` | JWT tài xế | Tải tối đa 1.000 chuyến đầu tiên phù hợp bộ lọc dưới dạng CSV UTF-8. |
+
+Các endpoint nhận query `status` (giá trị enum: `Paid`, `Cancelled`, ...), `from`/`to` (thời điểm tạo chuyến, ISO 8601) và `search` (tên điểm đón/điểm đến). Endpoint `/search` nhận thêm `page` (mặc định 1) và `pageSize` (mặc định 20, tối đa 100), trả về `items`, `totalItems`, `page`, `pageSize`, `totalPages`. Sắp xếp theo thời điểm cập nhật mới nhất. CSV xuất toàn bộ các trang trong giới hạn 1.000 dòng, không phụ thuộc `page`/`pageSize` của request.
+
+### Báo cáo theo ngày
+
+| Method | Endpoint | Quyền | Ý nghĩa |
+|---|---|---|---|
+| `GET` | `/trips/history/insights?from=2026-11-01&to=2026-11-30` | JWT hành khách | Báo cáo chuyến đi hằng ngày của hành khách. |
+| `GET` | `/driver/history/insights?from=2026-11-01&to=2026-11-30` | JWT tài xế | Báo cáo chuyến đi và thu nhập hằng ngày của tài xế. |
+
+`from` và `to` là ngày UTC bắt buộc (bao gồm cả hai đầu), tối đa 31 ngày. Kết quả có tổng số chuyến, số chuyến thanh toán/hủy/thất bại, tổng và trung bình tiền đã thanh toán, quãng đường đã thanh toán cùng danh sách `days` (bao gồm ngày không có chuyến). Tài xế chỉ thấy các chuyến đã trả khách/chờ thanh toán/đã thanh toán của mình.
 
 ## 2. Matching & Pricing Service — 3 API
 

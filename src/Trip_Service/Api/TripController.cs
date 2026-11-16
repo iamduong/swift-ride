@@ -24,6 +24,75 @@ public sealed class TripController(
     IDriverRepository driverRepository,
     IPublishEndpoint publishEndpoint) : ControllerBase
 {
+    [Authorize]
+    [HttpGet("history/summary")]
+    public async Task<ActionResult<TripHistorySummaryContract>> GetTripHistorySummaryAsync(
+        CancellationToken cancellationToken)
+    {
+        var session = await authService.AboutMeAsync(GetAccountUuid(), cancellationToken);
+        if (session.Profile is not null)
+        {
+            return Forbid();
+        }
+
+        return Ok(await tripService.GetTripHistorySummaryByRiderAsync(
+            session.Account.Uuid, cancellationToken));
+    }
+
+    [Authorize]
+    [HttpGet("history/search")]
+    public async Task<ActionResult<TripHistoryPageContract>> SearchTripHistoryAsync(
+        [FromQuery] TripHistorySearchContract query,
+        CancellationToken cancellationToken)
+    {
+        var session = await authService.AboutMeAsync(GetAccountUuid(), cancellationToken);
+        if (session.Profile is not null)
+        {
+            return Forbid();
+        }
+
+        return Ok(await tripService.SearchTripHistoryAsync(
+            session.Account.Uuid, false, query, cancellationToken));
+    }
+
+    [Authorize]
+    [HttpGet("history/export")]
+    public async Task<IActionResult> ExportTripHistoryAsync(
+        [FromQuery] TripHistorySearchContract query,
+        CancellationToken cancellationToken)
+    {
+        var session = await authService.AboutMeAsync(GetAccountUuid(), cancellationToken);
+        if (session.Profile is not null)
+        {
+            return Forbid();
+        }
+
+        var csv = await tripService.ExportTripHistoryAsync(session.Account.Uuid, false, query, cancellationToken);
+        return File(csv, "text/csv; charset=utf-8", "trip-history.csv");
+    }
+
+    [Authorize]
+    [HttpGet("history/insights")]
+    public async Task<ActionResult<TripHistoryInsightsContract>> GetTripHistoryInsightsAsync(
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        CancellationToken cancellationToken)
+    {
+        if (from is null || to is null)
+        {
+            throw new ArgumentException("Cần cung cấp from và to cho báo cáo.");
+        }
+
+        var session = await authService.AboutMeAsync(GetAccountUuid(), cancellationToken);
+        if (session.Profile is not null)
+        {
+            return Forbid();
+        }
+
+        return Ok(await tripService.GetTripHistoryInsightsAsync(
+            session.Account.Uuid, false, from.Value, to.Value, cancellationToken));
+    }
+
     // ! [Rider] - Trip history
     [Authorize]
     [HttpGet("history")]

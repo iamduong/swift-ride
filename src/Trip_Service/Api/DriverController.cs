@@ -26,6 +26,61 @@ public sealed class DriverController(
     // Rabbitmq 
     IPublishEndpoint publishEndpoint) : ControllerBase
 {
+    [HttpGet("history/summary")]
+    public async Task<ActionResult<TripHistorySummaryContract>> GetTripHistorySummaryAsync(
+        CancellationToken cancellationToken)
+    {
+        var session = await authService.AboutMeAsync(GetAccountUuid(), cancellationToken);
+        var driverUuid = session.Profile?.DriverUuid
+            ?? throw new UnauthorizedAccessException("Tài khoản không phải là tài xế.");
+
+        return Ok(await tripService.GetTripHistorySummaryByDriverAsync(driverUuid, cancellationToken));
+    }
+
+    [HttpGet("history/search")]
+    public async Task<ActionResult<TripHistoryPageContract>> SearchTripHistoryAsync(
+        [FromQuery] TripHistorySearchContract query,
+        CancellationToken cancellationToken)
+    {
+        var session = await authService.AboutMeAsync(GetAccountUuid(), cancellationToken);
+        var driverUuid = session.Profile?.DriverUuid
+            ?? throw new UnauthorizedAccessException("Tài khoản không phải là tài xế.");
+
+        return Ok(await tripService.SearchTripHistoryAsync(driverUuid, true, query, cancellationToken));
+    }
+
+    [HttpGet("history/export")]
+    public async Task<IActionResult> ExportTripHistoryAsync(
+        [FromQuery] TripHistorySearchContract query,
+        CancellationToken cancellationToken)
+    {
+        var session = await authService.AboutMeAsync(GetAccountUuid(), cancellationToken);
+        var driverUuid = session.Profile?.DriverUuid
+            ?? throw new UnauthorizedAccessException("Tài khoản không phải là tài xế.");
+
+        var csv = await tripService.ExportTripHistoryAsync(driverUuid, true, query, cancellationToken);
+        return File(csv, "text/csv; charset=utf-8", "driver-trip-history.csv");
+    }
+
+    [HttpGet("history/insights")]
+    public async Task<ActionResult<TripHistoryInsightsContract>> GetTripHistoryInsightsAsync(
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        CancellationToken cancellationToken)
+    {
+        if (from is null || to is null)
+        {
+            throw new ArgumentException("Cần cung cấp from và to cho báo cáo.");
+        }
+
+        var session = await authService.AboutMeAsync(GetAccountUuid(), cancellationToken);
+        var driverUuid = session.Profile?.DriverUuid
+            ?? throw new UnauthorizedAccessException("Tài khoản không phải là tài xế.");
+
+        return Ok(await tripService.GetTripHistoryInsightsAsync(
+            driverUuid, true, from.Value, to.Value, cancellationToken));
+    }
+
     [HttpGet("history")]
     public async Task<ActionResult<IReadOnlyList<HistoryTripResponseContract>>> GetTripHistoryAsync(
         CancellationToken cancellationToken)
