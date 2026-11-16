@@ -32,6 +32,7 @@ public class OSRMService(HttpClient httpClient) : IOSRMService
             ValidateLocation(location);
         }
 
+        // OSRM yêu cầu mỗi điểm theo thứ tự kinh độ, vĩ độ.
         var coordinates = string.Join(';', locations.Select(location => string.Create(
             CultureInfo.InvariantCulture,
             $"{location.Longitude},{location.Latitude}")));

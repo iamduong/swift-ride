@@ -23,12 +23,14 @@ public sealed class MatchingDriver(
 
         ValidateLocation(contract.Pickup);
 
+        // Chỉ tìm tài xế khả dụng trong bán kính cấu hình, bỏ qua những người đã được thử.
         var driver = await driverLocationRepository.FindNearestAvailableAsync(
             contract.Pickup,
             contract.ExcludeDriverUuids ?? [],
             options.Value.MaxDistanceMeters,
             cancellationToken);
 
+        // Guid.Empty báo cho bên gọi biết rằng không tìm được tài xế phù hợp.
         return new MatchingResponseContract
         {
             TripUuid = contract.TripUuid,
